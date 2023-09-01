@@ -7,7 +7,8 @@ from collections import OrderedDict
 
 from odoo import api, fields, models
 from odoo.tools import float_is_zero
-
+import logging
+_logger = logging.getLogger(__name__)
 
 class AccountMove(models.Model):
     _inherit = "account.move"
@@ -55,23 +56,28 @@ class AccountMove(models.Model):
         so_dict = {x.sale_id: x for x in self.picking_ids if x.sale_id}
         # Now group by picking by direct link or via same SO as picking's one
         for line in self.invoice_line_ids.filtered(lambda x: not x.display_type):
-            has_returned_qty = False
+            _logger.info("DEBUG line " + str(line.read(['move_line_ids','sale_line_ids'])))
             remaining_qty = line.quantity
-            for move in line.move_line_ids:
+            if self.move_type == "out_refund":
+                moves = line.move_line_ids.filtered(lambda x: x.picking_code == 'incoming')
+            else:
+                moves = line.move_line_ids.filtered(lambda x: x.picking_code == 'outgoing')
+            for move in moves:
                 key = (move.picking_id, line)
                 picking_dict.setdefault(key, 0)
                 qty = self._get_signed_quantity_done(line, move, sign)
                 picking_dict[key] += qty
                 remaining_qty -= qty
-            if not line.move_line_ids and line.sale_line_ids:
-                for so_line in line.sale_line_ids:
-                    if so_dict.get(so_line.order_id):
-                        key = (so_dict[so_line.order_id], line)
-                        picking_dict.setdefault(key, 0)
-                        qty = so_line.product_uom_qty
-                        picking_dict[key] += qty
-                        remaining_qty -= qty
-            elif not line.move_line_ids and not line.sale_line_ids:
+            # if not line.move_line_ids and line.sale_line_ids:
+            #     for so_line in line.sale_line_ids:
+            #         if so_dict.get(so_line.order_id):
+            #             key = (so_dict[so_line.order_id], line)
+            #             picking_dict.setdefault(key, 0)
+            #             qty = so_line.product_uom_qty
+            #             picking_dict[key] += qty
+            #             remaining_qty -= qty
+            # elif not line.move_line_ids and not line.sale_line_ids:
+            if not moves:
                 key = (self.env["stock.picking"], line)
                 picking_dict.setdefault(key, 0)
                 qty = line.quantity
@@ -79,10 +85,11 @@ class AccountMove(models.Model):
                 remaining_qty -= qty
             # To avoid to print duplicate lines because the invoice is a refund
             # without returned goods to refund.
-            if self.move_type == "out_refund" and not has_returned_qty:
-                remaining_qty = 0.0
-                for key in picking_dict:
-                    picking_dict[key] = abs(picking_dict[key])
+            _logger.info("DEBUG " + str(picking_dict))
+            # if self.move_type == "out_refund" and not has_returned_qty:
+            #     remaining_qty = 0.0
+            #     for key in picking_dict:
+            #         picking_dict[key] = abs(picking_dict[key])
             if not float_is_zero(
                 remaining_qty,
                 precision_rounding=line.product_id.uom_id.rounding or 0.01,
@@ -96,4 +103,5 @@ class AccountMove(models.Model):
             {"picking": key[0], "line": key[1], "quantity": value}
             for key, value in picking_dict.items()
         ]
+        _logger.info("DEBUG " + str(no_picking + self._sort_grouped_lines(with_picking)))
         return no_picking + self._sort_grouped_lines(with_picking)
