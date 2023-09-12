@@ -61,7 +61,7 @@ class AccountMove(models.Model):
             if self.move_type == "out_refund":
                 moves = line.move_line_ids.filtered(lambda x: x.picking_code == 'incoming')
             else:
-                moves = line.move_line_ids.filtered(lambda x: x.picking_code == 'outgoing')
+                moves = line.move_line_ids.filtered(lambda x: x.picking_code in ['outgoing'] or x.picking_type_id.sequence_code == "DS")
             for move in moves:
                 key = (move.picking_id, line)
                 picking_dict.setdefault(key, 0)
