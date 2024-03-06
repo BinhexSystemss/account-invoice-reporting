@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <odoo>
-    <template id="report_invoice_document" inherit_id="account.report_invoice_document">
+    <template
+        id="report_invoice_document"
+        name="Invoice With Picking"
+        inherit_id="account.report_invoice_document"
+        primary="True"
+    >
         <xpath expr="//t[contains(@t-foreach, 'lines')]/t[3]" position="attributes">
             <attribute name="t-if">False</attribute>
         </xpath>
@@ -136,4 +141,40 @@
             <attribute name="t-if">lines_group['quantity'] == l.quantity</attribute>
         </xpath>
     </template>
+
+    <template id="report_invoice_with_picking">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="lang" t-value="o.partner_id.lang" />
+                <t t-set="print_with_payments" t-value="False" />
+                <t
+                    t-call="account_invoice_report_grouped_by_picking.report_invoice_document"
+                    t-lang="lang"
+                />
+            </t>
+        </t>
+    </template>
+
+    <record id="account_invoices_picking" model="ir.actions.report">
+        <field name="name">Invoices with picking</field>
+        <field name="model">account.move</field>
+        <field name="report_type">qweb-pdf</field>
+        <field
+            name="report_name"
+        >account_invoice_report_grouped_by_picking.report_invoice_with_picking</field>
+        <field
+            name="report_file"
+        >account_invoice_report_grouped_by_picking.report_invoice_with_picking</field>
+        <field name="print_report_name">(object._get_report_base_filename())</field>
+        <field
+            name="attachment"
+        >(object.state == 'posted') and ((object.name or 'INV').replace('/','_')+'.pdf')</field>
+        <field name="binding_model_id" ref="model_account_move" />
+        <field name="binding_type">report</field>
+        <field
+            name="groups_id"
+            eval="[(4, ref('account.group_account_invoice')),
+(4, ref('account.group_account_readonly'))]"
+        />
+    </record>
 </odoo>
