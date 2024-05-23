@@ -56,7 +56,6 @@ class AccountMove(models.Model):
         so_dict = {x.sale_id: x for x in self.picking_ids if x.sale_id}
         # Now group by picking by direct link or via same SO as picking's one
         for line in self.invoice_line_ids.filtered(lambda x: not x.display_type):
-            _logger.info("DEBUG line " + str(line.read(['move_line_ids','sale_line_ids'])))
             remaining_qty = line.quantity
             if self.move_type == "out_refund":
                 moves = line.move_line_ids.filtered(lambda x: x.picking_code == 'incoming')
@@ -85,7 +84,6 @@ class AccountMove(models.Model):
                 remaining_qty -= qty
             # To avoid to print duplicate lines because the invoice is a refund
             # without returned goods to refund.
-            _logger.info("DEBUG " + str(picking_dict))
             # if self.move_type == "out_refund" and not has_returned_qty:
             #     remaining_qty = 0.0
             #     for key in picking_dict:
@@ -103,5 +101,4 @@ class AccountMove(models.Model):
             {"picking": key[0], "line": key[1], "quantity": value}
             for key, value in picking_dict.items()
         ]
-        _logger.info("DEBUG " + str(no_picking + self._sort_grouped_lines(with_picking)))
         return no_picking + self._sort_grouped_lines(with_picking)
